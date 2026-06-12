@@ -5,5 +5,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "pylint>=4.0.5",
     "ruff>=0.15.17",
+]
+
+[tool.pylint.'MESSAGES CONTROL']
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "pointless-string-statement"
 ]
