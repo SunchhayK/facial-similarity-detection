@@ -1,0 +1,70 @@
+{
+  "created_at": "2026-07-04T05:35:34.767372+00:00",
+  "seed": 42,
+  "min_images_per_subject": 5,
+  "split_ratios": {
+    "train": 0.8,
+    "val": 0.1,
+    "test": 0.1
+  },
+  "sources": [
+    {
+      "name": "synthetic",
+      "path": "dataset/raw/subjects_0-1999_72_imgs",
+      "id_prefix": "synthetic",
+      "subjects_total": 2000,
+      "images_total": 144000
+    },
+    {
+      "name": "casia",
+      "path": "dataset/raw/casia_webface_extracted",
+      "id_prefix": "casia",
+      "subjects_total": 10569,
+      "images_total": 490613
+    }
+  ],
+  "splits_summary": {
+    "train": {
+      "subjects": 10055,
+      "images": 505040,
+      "per_source": {
+        "synthetic": {
+          "subjects": 1600,
+          "images": 115200
+        },
+        "casia": {
+          "subjects": 8455,
+          "images": 389840
+        }
+      }
+    },
+    "val": {
+      "subjects": 1256,
+      "images": 65755,
+      "per_source": {
+        "synthetic": {
+          "subjects": 200,
+          "images": 14400
+        },
+        "casia": {
+          "subjects": 1056,
+          "images": 51355
+        }
+      }
+    },
+    "test": {
+      "subjects": 1258,
+      "images": 63818,
+      "per_source": {
+        "synthetic": {
+          "subjects": 200,
+          "images": 14400
+        },
+        "casia": {
+          "subjects": 1058,
+          "images": 49418
+        }
+      }
+    }
+  }
+}

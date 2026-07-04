@@ -217,8 +217,17 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-dataset/raw/*
+dataset/raw/olivetti/*
+dataset/raw/subjects_0-1999_72_imgs/*
+dataset/raw/casia_webface/*
+dataset/raw/casia_webface_extracted/*
+!dataset/raw/olivetti/.gitkeep
+!dataset/raw/subjects_0-1999_72_imgs/.gitkeep
+!dataset/raw/casia_webface/.gitkeep
 !dataset/raw/.gitkeep
 !dataset/.gitkeep
+
+# Split manifest (large, regenerable)
+dataset/splits/manifest.csv
 
 .DS_Store
