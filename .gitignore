@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+dataset/raw/*
+!dataset/raw/.gitkeep
+!dataset/.gitkeep
+
+.DS_Store
