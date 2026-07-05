@@ -237,50 +237,61 @@ Standard biometric indicators (ISO/IEC, 2021) are computed over a sweep of 200 t
 1. **False Acceptance Rate (FAR):** The ratio of impostor pairs incorrectly accepted as genuine.
 2. **False Rejection Rate (FRR):** The ratio of genuine pairs incorrectly rejected.
 3. **Equal Error Rate (EER):** The threshold point where $\text{FAR} = \text{FRR}$.
-4. **ROC-AUC:** Area under the Receiver Operating Characteristic curve.
-5. **TAR @ FAR:** The True Acceptance Rate (1 - FRR) achieved at strict, fixed FAR points (e.g., $10^{-2}$ or $10^{-3}$).
 
 ### 5.2 Demographic Subgroup Validation Protocol
 
 To monitor and mitigate demographic bias:
 
 - We establish an independent validation cohort of 50 Cambodian identities with 10 images each.
-- Pairwise cosine distances are calculated within this subgroup, and EER is reported separately to prevent the "demographic blind spot" where high global validation accuracy masks high error rates on minority demographics (Wang et al., 2019).
-
 ---
 
 ## Chapter 6: Experimental Results and Analysis
 
-This chapter presents the performance of the two models, margin ablation studies, and domain adaptation results on the Cambodian cohort.
+This chapter presents the individual performance of the two models, margin ablation studies, and domain adaptation results on the Cambodian cohort.
 
-### 6.1 Performance on Unseen Test Identities
+### 6.1 Individual Evaluation Results
 
-The comparative performance on the unseen test identities is summarized in Table 6.1.
+#### 6.1.1 Configuration A: Triplet-ResNet-18 (EmbeddingNet)
 
-| Metric                      | Configuration A (Triplet-ResNet-18) | Configuration B (ArcFace-ResNet-50) |
-| :-------------------------- | :---------------------------------: | :---------------------------------: |
-| **Equal Error Rate (EER)**  |              **9.25%**              |              **7.16%**              |
-| **EER Threshold ($\tau$)**  |               0.4150                |               0.1068                |
-| **ROC-AUC**                 |                  —                  |               0.9751                |
-| **Best-Threshold Accuracy** |                  —                  |               93.55%                |
-| **TAR @ FAR = $10^{-2}$**   |                  —                  |               85.63%                |
-| **TAR @ FAR = $10^{-3}$**   |                  —                  |               70.83%                |
+The lightweight Configuration A (ResNet-18 backbone trained with Batch-Hard Triplet Loss) achieves an Equal Error Rate (EER) of **9.25%** at a cosine distance verification threshold of $\tau = 0.4150$. Table 6.1 details the False Acceptance Rate (FAR) and False Rejection Rate (FRR) for this configuration across key operating thresholds.
 
-**Table 6.1:** _Verification performance summary on unseen test splits._
+| Cosine Distance Threshold ($\tau$) |         FAR / FRR         |
+| :--------------------------------: | :-----------------------: |
+|              **0.20**              |      26.46% / 4.80%       |
+|              **0.30**              |      16.92% / 6.32%       |
+|              **0.40**              |      10.03% / 8.68%       |
+|         **EER Threshold**          | **9.25% / 9.25%** ($\tau = 0.4150$) |
+|              **0.50**              |      5.56% / 12.29%       |
+|              **0.60**              |      2.92% / 17.52%       |
+|              **0.70**              |      1.41% / 24.10%       |
 
-The detailed FAR and FRR values across a sweep of cosine distance thresholds are presented in Table 6.2.
+**Table 6.1:** _FAR and FRR values for Configuration A at key operating thresholds._
 
-| Cosine Distance Threshold ($\tau$) |         Config A: FAR / FRR         |         Config B: FAR / FRR         |
-| :--------------------------------: | :---------------------------------: | :---------------------------------: |
-|              **0.20**              |           26.46% / 4.80%            |           1.28% / 15.04%            |
-|              **0.30**              |           16.92% / 6.32%            |           0.29% / 25.29%            |
-|              **0.40**              |           10.03% / 8.68%            |           0.07% / 34.83%            |
-|         **EER Threshold**          | **9.25% / 9.25%** ($\tau = 0.4150$) | **7.16% / 7.16%** ($\tau = 0.1068$) |
-|              **0.50**              |           5.56% / 12.29%            |           0.02% / 48.03%            |
-|              **0.60**              |           2.92% / 17.52%            |           0.00% / 64.32%            |
-|              **0.70**              |           1.41% / 24.10%            |           0.00% / 82.90%            |
+To visualize verification performance, sample face comparisons (genuine and impostor pairs) with their corresponding cosine distance scores are shown in Figure 6.1.
 
-**Table 6.2:** _FAR and FRR values at key operating thresholds._
+![Figure 6.1: Visual face comparison examples using Configuration A (Triplet-ResNet-18). Low cosine distance represents genuine matches (left), whereas high cosine distance represents impostor pairs (right).](gallery/images/face_comparison_triplet.png)
+_Figure 6.1: Visual face comparison examples using Configuration A (Triplet-ResNet-18). Low cosine distance represents genuine matches (left), whereas high cosine distance represents impostor pairs (right)._
+
+#### 6.1.2 Configuration B: ArcFace-ResNet-50
+
+The heavy Configuration B (ResNet-50 backbone trained with ArcFace Loss) achieves an EER of **7.16%** at a cosine distance verification threshold of $\tau = 0.1068$. Table 6.2 lists the corresponding FAR and FRR values across different thresholds.
+
+| Cosine Distance Threshold ($\tau$) |         FAR / FRR         |
+| :--------------------------------: | :-----------------------: |
+|              **0.20**              |      1.28% / 15.04%       |
+|              **0.30**              |      0.29% / 25.29%       |
+|              **0.40**              |      0.07% / 34.83%       |
+|         **EER Threshold**          | **7.16% / 7.16%** ($\tau = 0.1068$) |
+|              **0.50**              |      0.02% / 48.03%       |
+|              **0.60**              |      0.00% / 64.32%       |
+|              **0.70**              |      0.00% / 82.90%       |
+
+**Table 6.2:** _FAR and FRR values for Configuration B at key operating thresholds._
+
+Sample face comparisons showing genuine and impostor pair verification under Configuration B are visualized in Figure 6.2.
+
+![Figure 6.2: Visual face comparison examples using Configuration B (ArcFace-ResNet-50). Genuine and impostor pairs are separated by a strict boundary hypersphere.](gallery/images/face_comparison_arcface.png)
+_Figure 6.2: Visual face comparison examples using Configuration B (ArcFace-ResNet-50). Genuine and impostor pairs are separated by a strict boundary hypersphere._
 
 ### 6.2 Margin Hyperparameter Ablation Study (Configuration A)
 
@@ -303,7 +314,16 @@ The model trained purely on synthetic data exhibits a significant demographic ga
 
 ### 6.4 Discussion
 
-1. **Backbone Size vs. Optimization Trade-offs:** Configuration B (ArcFace-ResNet-50) achieves the lowest EER (7.16%), demonstrating that backbone capacity and larger training-identity pools (1,600 identities) remain dominant factors in performance. However, Configuration A (Triplet-ResNet-18) achieves competitive verification accuracy (9.25% EER) with a significantly lighter backbone and a 2.2x reduction in parameter count (11.3M vs 24.6M), making it highly suitable for resource-constrained deployments.
+A direct comparison of the biometric performance and architectural configurations of the two models is summarized in Table 6.4.
+
+| Configuration | Backbone | Loss Function | Embedding Size | Equal Error Rate (EER) | EER Threshold ($\tau$) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Configuration A (Triplet-18)** | ResNet-18 | Batch-Hard Triplet | 256 | 9.25% | 0.4150 |
+| **Configuration B (ArcFace-50)** | ResNet-50 | ArcFace | 512 | 7.16% | 0.1068 |
+
+**Table 6.4:** _Comparative performance and architecture summary._
+
+1. **Accuracy vs. Model Size Trade-offs:** Configuration B (ArcFace-ResNet-50) achieves the lowest EER (7.16%), demonstrating that backbone capacity and larger training-identity pools (1,600 identities) remain dominant factors in performance. However, Configuration A (Triplet-ResNet-18) achieves competitive verification accuracy (9.25% EER) with a significantly lighter backbone and a 2.2x reduction in parameter count (11.3M vs 24.6M), making it highly suitable for resource-constrained deployments.
 2. **Threshold Shift Analysis:** The crossing thresholds diverge significantly between Configuration B ($\tau \approx 0.11$) and Configuration A ($\tau \approx 0.42$). This is caused by different embedding dimensions (512 vs 256) and loss functions, which alter the spatial density of the unit hypersphere.
 3. **Sim-to-Real Domain Gap:** Synthetic rendering lacks micro-texture variations (e.g., skin pores, real sensor noise) found in real-world photography. Consequently, testing on real datasets exhibits a domain shift, highlighting the importance of domain adaptation fine-tuning prior to real-world deployment.
 
