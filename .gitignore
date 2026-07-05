@@ -231,3 +231,5 @@ dataset/raw/casia_webface_extracted/*
 dataset/splits/manifest.csv
 
 .DS_Store
+
+checkpoints/*

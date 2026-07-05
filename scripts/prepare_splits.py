@@ -43,6 +43,7 @@ SPLITS_DIR = PROJECT_ROOT / "dataset" / "splits"
 IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"})
 
 SPLIT_RATIOS = {"train": 0.8, "val": 0.1, "test": 0.1}
+MAX_SUBJECTS = 600
 
 
 @dataclass
@@ -144,6 +145,51 @@ def filter_by_min_images(
     return filtered
 
 
+def cap_images_per_subject(
+    subjects: dict[str, list[Path]],
+    max_images: int,
+    rng: np.random.Generator,
+) -> dict[str, list[Path]]:
+    """Randomly subsample each subject down to max_images if they exceed it."""
+    capped: dict[str, list[Path]] = {}
+    total_dropped = 0
+    for sid, imgs in subjects.items():
+        if len(imgs) > max_images:
+            indices = rng.choice(len(imgs), size=max_images, replace=False)
+            indices.sort()
+            capped[sid] = [imgs[i] for i in indices]
+            total_dropped += len(imgs) - max_images
+        else:
+            capped[sid] = imgs
+    if total_dropped > 0:
+        logger.info(
+            "Capped images per subject to %d (dropped %d images total)",
+            max_images,
+            total_dropped,
+        )
+    return capped
+
+
+def sample_subjects(
+    subject_ids: list[str], max_subjects: int, rng: np.random.Generator
+) -> list[str]:
+    """
+    Randomly sample up to max_subjects from the full pool.
+
+    If pool is smaller than max_subjects, use all subjects.
+    """
+    ids = list(subject_ids)
+    rng.shuffle(ids)
+    if len(ids) > max_subjects:
+        ids = ids[:max_subjects]
+        logger.info(
+            "Sampled %d subjects from pool of %d", max_subjects, len(subject_ids)
+        )
+    else:
+        logger.info("Pool has %d subjects (≤ %d), using all", len(ids), max_subjects)
+    return ids
+
+
 def split_subjects(
     subject_ids: list[str], rng: np.random.Generator
 ) -> dict[str, list[str]]:
@@ -167,22 +213,29 @@ def split_subjects(
     }
 
 
+def _extract_source_name(subject_id: str) -> str:
+    """Extract source name from prefixed subject_id (e.g. 'casia_001' -> 'casia')."""
+    return subject_id.rsplit("_", 1)[0] if "_" in subject_id else subject_id
+
+
 def build_manifest(
     sources: list[DatasetSource],
     min_images: int,
     seed: int,
+    max_subjects: int = MAX_SUBJECTS,
+    max_images_per_subject: int | None = None,
 ) -> tuple[list[dict], dict[str, SplitStats], dict]:
     """
-    Build the complete manifest across all sources.
+    Build manifest by pooling all sources, sampling max_subjects, then splitting 80/10/10.
 
     Returns:
         (manifest_rows, split_stats, config_metadata)
     """
     rng = np.random.default_rng(seed)
-    manifest_rows: list[dict] = []
-    overall_stats: dict[str, SplitStats] = {
-        split: SplitStats() for split in SPLIT_RATIOS
-    }
+
+    # Phase 1: Pool all subjects across sources
+    all_subjects: dict[str, list[Path]] = {}
+    subject_to_source: dict[str, str] = {}
     config_sources = []
 
     for source in sources:
@@ -197,46 +250,77 @@ def build_manifest(
             )
             continue
 
-        subject_ids = sorted(subjects.keys())
-        splits = split_subjects(subject_ids, rng)
-
-        source_stats = {split: {"subjects": 0, "images": 0} for split in SPLIT_RATIOS}
-
-        for split_name, split_ids in splits.items():
-            for subject_id in split_ids:
-                images = subjects[subject_id]
-                for img_path in images:
-                    relative_path = img_path.relative_to(PROJECT_ROOT)
-                    manifest_rows.append(
-                        {
-                            "path": str(relative_path),
-                            "subject_id": subject_id,
-                            "source": source.name,
-                            "split": split_name,
-                        }
-                    )
-
-                source_stats[split_name]["subjects"] += 1
-                source_stats[split_name]["images"] += len(images)
-
-            overall_stats[split_name].subjects += source_stats[split_name]["subjects"]
-            overall_stats[split_name].images += source_stats[split_name]["images"]
-            overall_stats[split_name].per_source[source.name] = source_stats[split_name]
+        for sid, imgs in subjects.items():
+            all_subjects[sid] = imgs
+            subject_to_source[sid] = source.name
 
         config_sources.append(
             {
                 "name": source.name,
                 "path": str(source.path.relative_to(PROJECT_ROOT)),
                 "id_prefix": source.id_prefix,
-                "subjects_total": len(subject_ids),
-                "images_total": sum(len(subjects[sid]) for sid in subject_ids),
+                "subjects_total": len(subjects),
+                "images_total": sum(len(imgs) for imgs in subjects.values()),
             }
         )
+
+    logger.info(
+        "Pooled %d subjects across %d sources", len(all_subjects), len(config_sources)
+    )
+
+    # Phase 1.5: Cap images per subject if requested
+    if max_images_per_subject is not None:
+        all_subjects = cap_images_per_subject(all_subjects, max_images_per_subject, rng)
+
+    # Phase 2: Sample max_subjects from the pool
+    all_ids = sorted(all_subjects.keys())
+    sampled_ids = sample_subjects(all_ids, max_subjects, rng)
+
+    # Phase 3: Split sampled subjects 80/10/10
+    splits = split_subjects(sampled_ids, rng)
+
+    # Phase 4: Build manifest rows and stats
+    manifest_rows: list[dict] = []
+    overall_stats: dict[str, SplitStats] = {
+        split: SplitStats() for split in SPLIT_RATIOS
+    }
+
+    for split_name, split_ids in splits.items():
+        source_counts: dict[str, dict[str, int]] = {}
+
+        for subject_id in split_ids:
+            images = all_subjects[subject_id]
+            source_name = subject_to_source[subject_id]
+
+            for img_path in images:
+                relative_path = img_path.relative_to(PROJECT_ROOT)
+                manifest_rows.append(
+                    {
+                        "path": str(relative_path),
+                        "subject_id": subject_id,
+                        "source": source_name,
+                        "split": split_name,
+                    }
+                )
+
+            if source_name not in source_counts:
+                source_counts[source_name] = {"subjects": 0, "images": 0}
+            source_counts[source_name]["subjects"] += 1
+            source_counts[source_name]["images"] += len(images)
+
+        overall_stats[split_name].subjects = sum(
+            sc["subjects"] for sc in source_counts.values()
+        )
+        overall_stats[split_name].images = sum(
+            sc["images"] for sc in source_counts.values()
+        )
+        overall_stats[split_name].per_source = source_counts
 
     config = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "seed": seed,
         "min_images_per_subject": min_images,
+        "max_subjects": max_subjects,
         "split_ratios": SPLIT_RATIOS,
         "sources": config_sources,
         "splits_summary": {
@@ -327,6 +411,24 @@ def parse_args() -> argparse.Namespace:
         default=SPLITS_DIR,
         help=f"Output directory for manifest and config (default: {SPLITS_DIR})",
     )
+    parser.add_argument(
+        "--sources",
+        nargs="+",
+        default=None,
+        help="Restrict to specific source names (e.g. --sources synthetic). Default: all available.",
+    )
+    parser.add_argument(
+        "--max-subjects",
+        type=int,
+        default=MAX_SUBJECTS,
+        help=f"Max subjects to sample from pool (default: {MAX_SUBJECTS})",
+    )
+    parser.add_argument(
+        "--max-images",
+        type=int,
+        default=None,
+        help="Max images per subject (randomly subsampled if exceeded). Default: no limit.",
+    )
     return parser.parse_args()
 
 
@@ -336,6 +438,13 @@ def main() -> None:
     logger.info("Seed: %d | Min images/subject: %d", args.seed, args.min_images)
 
     sources = get_dataset_sources()
+
+    # Filter by --sources if specified
+    if args.sources:
+        sources = [s for s in sources if s.name in args.sources]
+        unknown = set(args.sources) - {s.name for s in sources}
+        if unknown:
+            logger.warning("Unknown source names ignored: %s", unknown)
 
     available = [s for s in sources if s.exists()]
     if not available:
@@ -349,7 +458,13 @@ def main() -> None:
     for s in missing:
         logger.warning("Dataset source '%s' not found at %s", s.name, s.path)
 
-    manifest_rows, stats, config = build_manifest(available, args.min_images, args.seed)
+    manifest_rows, stats, config = build_manifest(
+        available,
+        args.min_images,
+        args.seed,
+        max_subjects=args.max_subjects,
+        max_images_per_subject=args.max_images,
+    )
 
     if not manifest_rows:
         logger.error(

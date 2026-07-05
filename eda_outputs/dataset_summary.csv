@@ -1,0 +1,4 @@
+Dataset,Subjects,Total Images,Min Imgs/Subject,Max Imgs/Subject,Mean Imgs/Subject,Median Imgs/Subject,Std Imgs/Subject
+synthetic,2000,144000,72,72,72.0,72.0,0.0
+casia_webface,10572,490623,2,802,46.4077752553916,27.0,59.30219705193662
+olivetti,40,400,10,10,10.0,10.0,0.0
