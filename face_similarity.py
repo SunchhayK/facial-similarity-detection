@@ -736,7 +736,7 @@ def evaluate(args):
 # ---------------------------------------------------------------------------
 
 
-def parse_args():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="FaceNet+ArcFace-inspired face similarity training & evaluation"
     )
@@ -823,7 +823,7 @@ def parse_args():
     )
     eval_parser.add_argument("--max_pairs", type=int, default=500_000)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Default to train mode if no subcommand given
     if args.mode is None:

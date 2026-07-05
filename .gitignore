@@ -233,3 +233,5 @@ dataset/splits/manifest.csv
 .DS_Store
 
 checkpoints/*
+# Gallery data (user-specific enrolled faces)
+gallery/

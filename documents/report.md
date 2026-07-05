@@ -105,9 +105,10 @@ The evaluation script outputs a table showing the FAR/FRR trade-offs at various 
 
 ## 6. Results on Test Set
 
-After training the model for 30 epochs and selecting the best checkpoint (Epoch 29), we evaluated the facial embeddings on the test set. 
+After training the model for 30 epochs and selecting the best checkpoint (Epoch 29), we evaluated the facial embeddings on the test set.
 
 **Summary of the Evaluation (500,000 Sampled Pairs):**
+
 - **Genuine pairs:** 8,213
 - **Impostor pairs:** 491,787
 - **EER (Equal Error Rate):** 0.0925 @ threshold = 0.4150
